@@ -63,3 +63,69 @@ A: Those months had only a few hundred orders against about 6,500 normally, whic
 
 **Q: WHERE vs HAVING?**
 A: WHERE filters individual rows before grouping; HAVING filters groups after aggregation.
+
+---
+
+## Day 2: Cleaning & star schema
+
+### Concepts
+| Concept | Meaning |
+|---|---|
+| **Layers (raw → staging → marts)** | Never edit raw data. Staging cleans it; marts shape it for analysis. If a rule is wrong, rebuild. |
+| **Star schema** | Fact tables (events + numbers) in the middle, dimension tables (descriptions) around them |
+| **Fact table** | `fct_orders`, `fct_order_items`: things that happened, with measures (revenue, delivery days) |
+| **Dimension table** | `dim_customers`, `dim_products`, `dim_sellers`, `dim_date`: who / what / when you slice by |
+| **Grain** | What one row represents. Decide it *first* for every table. |
+| **Fan-out** | Joining two "many" tables multiplies rows and inflates sums. Fix: aggregate to the target grain *before* joining. |
+| **Data tests** | Queries that return rule-breaking rows; 0 rows = pass. Run on every build. |
+
+### SQL learned today
+| Keyword | Meaning |
+|---|---|
+| `INNER JOIN` (or `JOIN`) | keep only rows that match in both tables |
+| `LEFT JOIN` | keep all left rows; right side is NULL when no match |
+| `ON a.key = b.key` | the matching rule |
+| `WITH name AS (...)` | CTE: a named step you can use in the next query |
+| `ROW_NUMBER() OVER (PARTITION BY x ORDER BY y)` | number rows 1,2,3 within each x. Keep `= 1` to de-duplicate or pick the latest. |
+| `CASE WHEN ... THEN ... ELSE ... END` | if/else to create categories |
+| `COALESCE(a, b, c)` | first non-NULL value (fill missing values) |
+| `CREATE OR REPLACE TABLE x AS SELECT ...` | save a query's result as a table (re-runnable) |
+| `date_diff('day', a, b)` | days between two dates |
+| `CAST(x AS DATE)` | convert a timestamp to a date |
+| `UNION ALL` | stack results of two queries |
+
+### Key definitions (be consistent everywhere!)
+- **Revenue** = `price + freight_value` of items. Payment totals are about 1% higher because of installment interest; we use item-based revenue.
+- **Late order** = delivered *date* is after the estimated delivery *date*.
+- **Analysis window** = Jan 2017 – Aug 2018 (`in_analysis_window = true`).
+
+### Your-turn answers
+```sql
+-- 1. Revenue by customer state → SP ≈ 5.9M, RJ ≈ 2.1M, MG ≈ 1.9M, RS, PR
+SELECT customer_state, ROUND(SUM(order_revenue)) AS revenue
+FROM marts.fct_orders GROUP BY customer_state ORDER BY revenue DESC NULLS LAST LIMIT 5;
+
+-- 2. Orders per payment type → credit_card 74,975 · boleto 19,784 · voucher 3,151 · debit_card 1,527
+--    (4 orders have NULL: no valid payment recorded)
+SELECT main_payment_type, COUNT(*) AS orders
+FROM marts.fct_orders GROUP BY main_payment_type ORDER BY orders DESC;
+
+-- 3. Revenue by SELLER state → SP ≈ 10.2M (about 65% of all revenue!), PR, MG, RJ, SC
+SELECT s.state, ROUND(SUM(f.item_revenue)) AS revenue
+FROM marts.fct_order_items AS f
+JOIN marts.dim_sellers AS s ON f.seller_id = s.seller_id
+GROUP BY s.state ORDER BY revenue DESC LIMIT 5;
+```
+
+### Interview questions you can now answer
+**Q: Walk me through your data model.**
+A: Three layers. Raw holds the untouched CSVs. Staging renames columns, de-duplicates reviews with ROW_NUMBER, translates categories and removes invalid payments. Marts is a star schema with two fact tables, orders (one row per order) and order items (one row per item), plus customer, product, seller and date dimensions. Ten automated tests check uniqueness, that no rows are lost, and that revenue reconciles between the two fact tables.
+
+**Q: What's a fan-out and how did you avoid it?**
+A: When you join a table to two others that each have many rows per key, rows multiply. Joining orders to items and payments directly inflated revenue from 15.84M to 16.57M. I aggregated items and payments to one row per order in CTEs before joining, and added a reconciliation test so it can't happen silently.
+
+**Q: INNER vs LEFT JOIN?**
+A: INNER keeps only matching rows. LEFT keeps every row from the left table, with NULLs where there's no match. I used LEFT JOIN for reviews and payments so that orders without them aren't dropped.
+
+**Q: How do you remove duplicates in SQL?**
+A: `ROW_NUMBER() OVER (PARTITION BY key ORDER BY timestamp DESC)` and keep `rn = 1`. I used it to keep only the latest review per order.
