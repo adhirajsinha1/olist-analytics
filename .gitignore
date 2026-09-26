@@ -1,0 +1,14 @@
+# Raw data is large and anyone can download it from Kaggle, so we don't commit it
+data/raw/*.csv
+# The database is rebuilt by running src/load_data.py
+data/*.duckdb
+data/*.duckdb.wal
+
+# Python / Jupyter clutter
+.venv*/
+__pycache__/
+.ipynb_checkpoints/
+
+# Mac clutter
+.DS_Store
+_empty_folder_delete_me/
