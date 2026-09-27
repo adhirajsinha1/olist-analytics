@@ -5,6 +5,14 @@
 End-to-end analysis of **~100k real orders** from Olist, a Brazilian e-commerce marketplace (2016–2018).
 The project covers revenue growth, customer retention, delivery performance and seller quality, and ends with business recommendations.
 
+## Interactive dashboard
+**▶ Live app: _link coming soon_**
+
+![Dashboard preview](reports/figures/00_dashboard_preview.png)
+
+KPIs, revenue trends, RFM segments, delivery performance and a seller scorecard, filterable by month and customer state.
+Run it locally with `streamlit run dashboard/app.py`.
+
 ## Key findings so far
 ![Monthly revenue](reports/figures/01_monthly_revenue.png)
 
@@ -35,7 +43,8 @@ Python (pandas) · SQL (DuckDB) · Jupyter · Plotly / Matplotlib · Streamlit �
 ```
 Kaggle CSVs → src/load_data.py → DuckDB raw
             → src/build_models.py → staging → marts (star schema) → data tests
-            → analysis notebooks → Streamlit dashboard
+            → analysis notebooks
+            → src/export_dashboard_data.py → Parquet → Streamlit dashboard (deployed)
 ```
 
 ## Data model (star schema)
@@ -70,7 +79,8 @@ sql/staging/     cleaning models (one file per table)
 sql/marts/       star schema models
 sql/tests/       data quality tests
 notebooks/       analysis notebooks
-reports/         written findings (data quality report, insights)
+reports/         written findings and chart images
+dashboard/       Streamlit app + its Parquet data
 ```
 
 ## How to run
@@ -79,7 +89,9 @@ reports/         written findings (data quality report, insights)
 3. `pip install -r requirements.txt`
 4. `python src/load_data.py`: loads CSVs into DuckDB
 5. `python src/build_models.py`: builds staging + star schema and runs 12 data tests
-6. Open the notebooks in `notebooks/` in order
+6. `python src/export_dashboard_data.py`: exports small Parquet files for the dashboard
+7. `streamlit run dashboard/app.py`: runs the dashboard locally
+8. Open the notebooks in `notebooks/` in order
 
 ## Progress
 - [x] Day 1: data loading and data quality profiling ([report](reports/data_quality_report.md))
@@ -87,5 +99,5 @@ reports/         written findings (data quality report, insights)
 - [x] Day 3: revenue, growth and payments analysis ([notebook](notebooks/03_revenue_analysis.ipynb))
 - [x] Day 4: cohort retention and RFM segmentation ([notebook](notebooks/04_customer_analysis.ipynb))
 - [x] Day 5: delivery, seller scorecard and statistical tests ([notebook](notebooks/05_delivery_seller_analysis.ipynb))
-- [ ] Day 6: dashboard
+- [x] Day 6: interactive Streamlit dashboard ([code](dashboard/app.py))
 - [ ] Day 7: final insights and recommendations

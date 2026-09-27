@@ -1,0 +1,5 @@
+# Packages for the online dashboard only (Streamlit Community Cloud reads this file)
+streamlit>=1.50
+duckdb>=1.1
+pandas>=2.2
+plotly>=5.20

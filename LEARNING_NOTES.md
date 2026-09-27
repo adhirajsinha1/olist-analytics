@@ -337,3 +337,44 @@ A: The carrier leg is about 75% of delivery time, and late rates spiked to 12–
 
 **Q: Statistical vs practical significance?**
 A: Late orders were about R$17 more expensive on average, with p≈1e-8, which is significant but practically small. With large samples, almost everything is significant, so I always pair a p-value with an effect size.
+
+---
+
+## Day 6: Interactive dashboard (Streamlit) & deployment
+
+### How the dashboard works
+```
+DuckDB marts ──(src/export_dashboard_data.py)──► dashboard/data/*.parquet ──► dashboard/app.py ──► Streamlit Cloud
+```
+- **Why export Parquet files?** The full database isn't on GitHub (too big, and it's rebuilt locally). The online app needs its data *in the repo*, so we export only the columns it needs: 4 files, ~2 MB total.
+- **Parquet** = a compressed, column-based file format used everywhere in data engineering. It's much smaller and faster than CSV and keeps data types.
+- Customer IDs were replaced with small integers (`DENSE_RANK`), which gives smaller files and avoids publishing raw IDs.
+
+### Streamlit concepts
+| Code | Meaning |
+|---|---|
+| `streamlit run dashboard/app.py` | start the app locally (opens in the browser) |
+| The script re-runs top to bottom | every time a user changes a filter |
+| `@st.cache_data` | remember a slow function's result (data loads once, not on every click) |
+| `st.sidebar.select_slider`, `st.sidebar.multiselect` | filter widgets |
+| `st.metric` | KPI cards |
+| `st.tabs` | pages within the app |
+| `st.plotly_chart(fig)` | interactive chart (hover, zoom) |
+| `st.dataframe` | sortable table |
+| `st.stop()` | stop the script early (e.g. no data after filtering) |
+
+### Dashboard design choices (be ready to explain)
+- **KPIs first** (revenue, orders, customers, AOV, late %, review), then detail, following the "overview → zoom → details" order.
+- **Filters in one place** (sidebar), and the app states which views they apply to.
+- **One message per chart**, with consistent colours: blue = normal, orange = problem, grey = context.
+- **Hover tooltips** show exact values, so the charts don't need a number on every bar.
+
+### Interview questions you can now answer
+**Q: Walk me through your dashboard.**
+A: Six KPI cards at the top, then four tabs. Revenue shows the monthly trend, top categories and payment mix. Customers shows RFM segments with a recommended action for each. Delivery shows late rate over time, reviews by lateness and the worst states. Sellers shows an interactive scorecard. Everything filters by month and customer state, and a Key Insights tab summarises the findings and recommendations.
+
+**Q: How did you deploy it?**
+A: The analysis pipeline runs locally in DuckDB and exports the dashboard's data as compressed Parquet files, about 2 MB. The Streamlit app reads those files with DuckDB and is deployed on Streamlit Community Cloud straight from the GitHub repo, so every push redeploys it.
+
+**Q: What would you add with more time?**
+A: Scheduled data refresh, for example a GitHub Action running the pipeline; alerting when the late rate crosses a threshold; a cohort retention view; and possibly a delivery-delay prediction model to flag orders at risk of arriving late.
