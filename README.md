@@ -5,6 +5,17 @@
 End-to-end analysis of **~100k real orders** from Olist, a Brazilian e-commerce marketplace (2016–2018).
 The project covers revenue growth, customer retention, delivery performance and seller quality, and ends with business recommendations.
 
+## Key findings so far
+![Monthly revenue](reports/figures/01_monthly_revenue.png)
+
+- **R$ 15.7M revenue** from ~98k orders (Jan 2017 – Aug 2018); Jan–Aug revenue **+140% year over year**
+- **Growth has stalled:** monthly revenue has been flat at ~R$ 1.0–1.15M throughout 2018
+- Order volume grew ~8× while **average order value stayed flat (~R$ 160)**, so growth came from volume only
+- **Black Friday 2017 = 7.5× a normal day's orders**
+- Credit card pays for ~75% of orders; **orders split into 7+ installments have ~3× the average order value**
+- **Only 3.1% of customers ever order again** (Day 4 digs into why)
+- **~7% of deliveries are late, and late orders average a 2.3★ review vs 4.3★ on time** (Day 5)
+
 ## Business questions
 1. How is revenue growing, and what drives it (categories, regions, seasonality)?
 2. Do customers come back? Which customer segments matter most?
@@ -66,7 +77,7 @@ reports/         written findings (data quality report, insights)
 ## Progress
 - [x] Day 1: data loading and data quality profiling ([report](reports/data_quality_report.md))
 - [x] Day 2: cleaning, star schema and automated data tests
-- [ ] Day 3: revenue and payments analysis
+- [x] Day 3: revenue, growth and payments analysis ([notebook](notebooks/03_revenue_analysis.ipynb))
 - [ ] Day 4: cohort retention and RFM segmentation
 - [ ] Day 5: delivery and seller performance
 - [ ] Day 6: dashboard

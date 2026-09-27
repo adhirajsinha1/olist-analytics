@@ -129,3 +129,80 @@ A: INNER keeps only matching rows. LEFT keeps every row from the left table, wit
 
 **Q: How do you remove duplicates in SQL?**
 A: `ROW_NUMBER() OVER (PARTITION BY key ORDER BY timestamp DESC)` and keep `rn = 1`. I used it to keep only the latest review per order.
+
+---
+
+## Day 3: Revenue, growth & payments
+
+### Window functions: `FUNCTION() OVER (...)`
+A normal aggregate with GROUP BY **collapses** rows. A window function calculates across rows but **keeps every row**.
+
+| Pattern | What it does |
+|---|---|
+| `LAG(x) OVER (ORDER BY month)` | previous row's value → month-over-month growth: `x / LAG(x) - 1` |
+| `LEAD(x) OVER (ORDER BY month)` | next row's value |
+| `SUM(x) OVER (ORDER BY month)` | running (cumulative) total |
+| `AVG(x) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)` | 3-month moving average |
+| `SUM(x) OVER ()` | grand total on every row → share: `x / SUM(x) OVER ()` |
+| `RANK() OVER (ORDER BY x DESC)` | rank (ties share a rank, then skip: 1,1,3) |
+| `DENSE_RANK()` | ties share a rank, no skip: 1,1,2 |
+| `ROW_NUMBER()` | always unique: 1,2,3 |
+| `... OVER (PARTITION BY group ORDER BY ...)` | restart the calculation for each group |
+
+**Interview favourite:** *"Find the top 3 products in each category"* →
+`ROW_NUMBER() OVER (PARTITION BY category ORDER BY revenue DESC)` then keep `<= 3`.
+
+### Other SQL today
+- `CREATE TEMP VIEW name AS SELECT ...`: a saved query that behaves like a table (avoids repeating filters)
+- `SUM(CASE WHEN condition THEN x END)`: **conditional aggregation**, e.g. revenue for 2017 and 2018 as two columns in one query
+- `strftime(date, '%Y-%m')`, `YEAR()`, `MONTH()`, `QUARTER()`, `ISODOW()`, `HOUR()`: date parts
+
+### pandas learned today
+| Code | Meaning |
+|---|---|
+| `df["col"]` | one column |
+| `df.iloc[0]` | first row |
+| `df[df["orders"] > 100]` | filter rows |
+| `df["col"].mean()`, `.sum()`, `.idxmax()` | summary / position of the max |
+| `df["col"].pct_change()` | % change vs previous row (pandas' LAG) |
+| `df.pivot(index=, columns=, values=)` | reshape long → grid (for heatmaps) |
+| `df.head(10)` | first 10 rows |
+
+### Chart principles used
+- **One chart = one message**, written as the title ("plateau in 2018", not "Revenue chart")
+- Highlight what matters (Black Friday bar in orange), grey for context
+- **Never two y-axes.** Two measures of different scale go in two charts side by side.
+- Sequential data (heatmap) uses **one colour** from light to dark
+
+### Your-turn answers
+```sql
+-- 1. Revenue by year & quarter → biggest: 2018 Q2 (≈ R$ 3.32M), then 2018 Q1 (≈ R$ 3.23M)
+SELECT YEAR(order_date) AS year, QUARTER(order_date) AS quarter, ROUND(SUM(order_revenue)) AS revenue
+FROM orders GROUP BY year, quarter ORDER BY year, quarter;
+
+-- 2. MoM growth in number of orders
+WITH m AS (SELECT strftime(order_date, '%Y-%m') AS month, COUNT(*) AS orders FROM orders GROUP BY month)
+SELECT month, orders,
+       ROUND(100.0 * (orders / LAG(orders) OVER (ORDER BY month) - 1), 1) AS mom_growth_pct
+FROM m ORDER BY month;
+-- careful: orders is an integer, so use 100.0 (not 100) to force decimal division!
+
+-- 3. Top 5 sellers → the #1 seller made ≈ R$ 249k
+SELECT RANK() OVER (ORDER BY SUM(item_revenue) DESC) AS rank, seller_id, ROUND(SUM(item_revenue)) AS revenue
+FROM marts.fct_order_items
+WHERE order_date BETWEEN '2017-01-01' AND '2018-08-31' AND order_status NOT IN ('canceled', 'unavailable')
+GROUP BY seller_id ORDER BY rank LIMIT 5;
+```
+
+### Interview questions you can now answer
+**Q: What's the difference between a window function and GROUP BY?**
+A: GROUP BY collapses rows into one per group. A window function computes across a set of rows but keeps every row, so I can show each month's revenue next to the previous month's (LAG) or a running total.
+
+**Q: How did you calculate month-over-month growth?**
+A: Aggregate revenue by month in a CTE, then `revenue / LAG(revenue) OVER (ORDER BY month) - 1`.
+
+**Q: What were the main revenue insights?**
+A: Jan–Aug revenue grew about 140% year over year, but monthly revenue has been flat at around R$ 1.0–1.15M throughout 2018. Order volume grew about 8× while average order value stayed at around R$ 160, so growth came entirely from volume. That points to AOV levers: installments (7+ installment orders have about 3× the AOV), bundles and free-shipping thresholds. Black Friday reached about 7.5× normal daily orders, which has logistics implications.
+
+**Q: Why compare Jan–Aug 2018 with Jan–Aug 2017 instead of full years?**
+A: 2018 data ends in August. Comparing the same months keeps the comparison fair and removes seasonality effects like Black Friday.
