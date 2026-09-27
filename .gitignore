@@ -12,3 +12,7 @@ __pycache__/
 # Mac clutter
 .DS_Store
 _empty_folder_delete_me/
+
+# Personal study notes (kept locally, not published)
+LEARNING_NOTES.md
+INTERVIEW_PREP.md
