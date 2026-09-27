@@ -206,3 +206,66 @@ A: Jan–Aug revenue grew about 140% year over year, but monthly revenue has bee
 
 **Q: Why compare Jan–Aug 2018 with Jan–Aug 2017 instead of full years?**
 A: 2018 data ends in August. Comparing the same months keeps the comparison fair and removes seasonality effects like Black Friday.
+
+---
+
+## Day 4: Customers, retention, cohorts & RFM
+
+### Concepts
+| Concept | Meaning |
+|---|---|
+| **Repeat rate** | % of customers with 2+ orders |
+| **Cohort** | Customers grouped by the month of their *first* purchase |
+| **Cohort retention** | % of a cohort that buys again N months after their first purchase. Separates retention from acquisition. |
+| **RFM** | Recency (days since last order), Frequency (number of orders), Monetary (total spend) → segments marketing can act on |
+| **Self-join** | Joining a table to itself (e.g. 1st order vs 2nd order of the same customer) |
+| **Long vs wide data** | Long = one row per cohort×month; wide = grid. `pivot` converts long → wide. |
+
+### SQL learned today
+| Code | Meaning |
+|---|---|
+| `date_trunc('month', ts)` | round a timestamp down to the 1st of its month |
+| `date_diff('month', a, b)` | whole months between two dates |
+| `NTILE(5) OVER (ORDER BY x)` | split rows into 5 equal groups (quintiles), labelled 1–5 |
+| `AVG(CASE WHEN cond THEN 1 ELSE 0 END)` | share of rows meeting a condition (a rate) |
+| `ts + INTERVAL 180 DAY` | date arithmetic |
+| `COUNT(DISTINCT CASE WHEN ... THEN id END)` | count unique ids that meet a condition |
+
+### pandas learned today
+- `df.pivot(index="cohort", columns="month_number", values="customers")` → cohort grid
+- `grid.div(grid[0], axis=0)` → divide each row by its first column (turn counts into %)
+- `df.groupby("col")["x"].agg(["count", "min", "max", "mean"])` → summary per group
+- `series.median()`, `(series == 0).sum()` → median; count of rows matching a condition
+
+### The "sanity check your metric" story (use this in interviews!)
+The headline repeat rate was 3.0%, but 30% of those "second orders" were placed **the same day** as the first, probably split baskets across sellers.
+Excluding them, the **true repeat rate is about 2.1%**. Lesson: before reporting a metric, check whether it measures what you think it measures.
+
+### Your-turn answers
+```sql
+-- 1. Customers with 3+ orders → 252
+SELECT COUNT(*) FROM marts.dim_customers WHERE total_orders >= 3;
+
+-- 2. Avg recency & spend by r_score → recency falls from ~473 days (score 1) to ~48 days (score 5);
+--    spend is ~R$ 157–170 in every group, so recency and spend are unrelated here
+SELECT r_score, ROUND(AVG(recency_days)) AS avg_recency, ROUND(AVG(monetary), 1) AS avg_spend
+FROM marts.customer_rfm GROUP BY r_score ORDER BY r_score;
+
+-- 3. Spending quartiles → Q1: R$ 10–63 · Q2: 63–108 · Q3: 108–183 · Q4: 183–13,664
+SELECT quartile, MIN(monetary) AS min_spend, MAX(monetary) AS max_spend
+FROM (SELECT monetary, NTILE(4) OVER (ORDER BY monetary) AS quartile FROM marts.customer_rfm)
+GROUP BY quartile ORDER BY quartile;
+```
+
+### Interview questions you can now answer
+**Q: How would you measure customer retention?**
+A: Cohort analysis. Group customers by first-purchase month, then calculate the % of each cohort that purchases again in each following month. At Olist, every cohort had under 1% monthly retention, and only about 2% returned within 6 months, so low retention is structural rather than a one-off.
+
+**Q: Explain RFM and how you adapted it.**
+A: RFM scores customers on recency, frequency and monetary value. Normally each is split into quintiles, but 97% of Olist customers bought once, so frequency had no spread. I scored recency and monetary with NTILE(5), treated frequency as one vs two-plus orders, and mapped the combinations to seven named segments with a recommended action each.
+
+**Q: What did you recommend?**
+A: Two segments, new big spenders and at-risk big spenders, are about 30% of customers but 56% of revenue, so CRM spend should go there first, including a win-back campaign for the 14k at-risk big spenders. I also recommended timing post-purchase journeys at 60–90 days (the median genuine repeat is 75 days), focusing on home and fashion buyers who repeat 2–3× more, and fixing late first deliveries, since those customers return about 20% less often.
+
+**Q: What's NTILE vs RANK?**
+A: RANK gives each row its position (1, 2, 3… with ties). NTILE(n) divides the ordered rows into n equal-sized buckets and returns the bucket number, which makes it good for quintiles and deciles.

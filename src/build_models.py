@@ -28,6 +28,7 @@ MART_ORDER = [
     "dim_sellers",
     "fct_order_items",
     "fct_orders",
+    "customer_rfm",      # built from fct_orders, so it must come after it
 ]
 
 

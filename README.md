@@ -13,7 +13,9 @@ The project covers revenue growth, customer retention, delivery performance and 
 - Order volume grew ~8× while **average order value stayed flat (~R$ 160)**, so growth came from volume only
 - **Black Friday 2017 = 7.5× a normal day's orders**
 - Credit card pays for ~75% of orders; **orders split into 7+ installments have ~3× the average order value**
-- **Only 3.1% of customers ever order again** (Day 4 digs into why)
+- **Only ~3% of customers order again, and ~30% of those "repeats" are same-day split baskets → true repeat rate ≈ 2%**
+- Retention is **under 1% per month in every cohort**; genuine repeat buyers return after a median of 75 days
+- RFM segmentation: **"new" and "at-risk" big spenders are ~30% of customers but ~56% of revenue**
 - **~7% of deliveries are late, and late orders average a 2.3★ review vs 4.3★ on time** (Day 5)
 
 ## Business questions
@@ -51,9 +53,10 @@ erDiagram
 | `dim_products` | one product | 32,951 |
 | `dim_sellers` | one seller | 3,095 |
 | `dim_date` | one calendar day | 791 |
+| `customer_rfm` | one customer with RFM scores & segment | 94,707 |
 
 **Layers:** `raw` (untouched CSVs) → `staging` (cleaned, de-duplicated, translated) → `marts` (star schema).
-**Data tests:** 10 SQL tests (uniqueness, no lost rows, revenue reconciliation, valid ranges, non-null keys) run on every build.
+**Data tests:** 11 SQL tests (uniqueness, no lost rows, revenue reconciliation, valid ranges, non-null keys) run on every build.
 
 ## Project structure
 ```
@@ -71,14 +74,14 @@ reports/         written findings (data quality report, insights)
 2. `python3 -m venv .venv && source .venv/bin/activate`
 3. `pip install -r requirements.txt`
 4. `python src/load_data.py`: loads CSVs into DuckDB
-5. `python src/build_models.py`: builds staging + star schema and runs 10 data tests
+5. `python src/build_models.py`: builds staging + star schema and runs 11 data tests
 6. Open the notebooks in `notebooks/` in order
 
 ## Progress
 - [x] Day 1: data loading and data quality profiling ([report](reports/data_quality_report.md))
 - [x] Day 2: cleaning, star schema and automated data tests
 - [x] Day 3: revenue, growth and payments analysis ([notebook](notebooks/03_revenue_analysis.ipynb))
-- [ ] Day 4: cohort retention and RFM segmentation
+- [x] Day 4: cohort retention and RFM segmentation ([notebook](notebooks/04_customer_analysis.ipynb))
 - [ ] Day 5: delivery and seller performance
 - [ ] Day 6: dashboard
 - [ ] Day 7: final insights and recommendations
