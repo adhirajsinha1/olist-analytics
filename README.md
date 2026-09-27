@@ -16,7 +16,10 @@ The project covers revenue growth, customer retention, delivery performance and 
 - **Only ~3% of customers order again, and ~30% of those "repeats" are same-day split baskets → true repeat rate ≈ 2%**
 - Retention is **under 1% per month in every cohort**; genuine repeat buyers return after a median of 75 days
 - RFM segmentation: **"new" and "at-risk" big spenders are ~30% of customers but ~56% of revenue**
-- **~7% of deliveries are late, and late orders average a 2.3★ review vs 4.3★ on time** (Day 5)
+- **6.8% of deliveries are late, and late orders average 2.3★ vs 4.3★ on time** (Welch t-test p≈0, Cohen's d = 1.47)
+- **A late first delivery cuts the repeat rate by ~19%** (chi-square p≈0.01)
+- The **carrier leg is ~75% of delivery time**; late rates spiked to 12–19% after demand peaks
+- Top 10% of sellers = ~2/3 of revenue; **50 established sellers underperform**, including the #2 seller by revenue
 
 ## Business questions
 1. How is revenue growing, and what drives it (categories, regions, seasonality)?
@@ -54,9 +57,10 @@ erDiagram
 | `dim_sellers` | one seller | 3,095 |
 | `dim_date` | one calendar day | 791 |
 | `customer_rfm` | one customer with RFM scores & segment | 94,707 |
+| `seller_scorecard` | one seller with KPIs & performance flag | 3,029 |
 
 **Layers:** `raw` (untouched CSVs) → `staging` (cleaned, de-duplicated, translated) → `marts` (star schema).
-**Data tests:** 11 SQL tests (uniqueness, no lost rows, revenue reconciliation, valid ranges, non-null keys) run on every build.
+**Data tests:** 12 SQL tests (uniqueness, no lost rows, revenue reconciliation, valid ranges, non-null keys) run on every build.
 
 ## Project structure
 ```
@@ -74,7 +78,7 @@ reports/         written findings (data quality report, insights)
 2. `python3 -m venv .venv && source .venv/bin/activate`
 3. `pip install -r requirements.txt`
 4. `python src/load_data.py`: loads CSVs into DuckDB
-5. `python src/build_models.py`: builds staging + star schema and runs 11 data tests
+5. `python src/build_models.py`: builds staging + star schema and runs 12 data tests
 6. Open the notebooks in `notebooks/` in order
 
 ## Progress
@@ -82,6 +86,6 @@ reports/         written findings (data quality report, insights)
 - [x] Day 2: cleaning, star schema and automated data tests
 - [x] Day 3: revenue, growth and payments analysis ([notebook](notebooks/03_revenue_analysis.ipynb))
 - [x] Day 4: cohort retention and RFM segmentation ([notebook](notebooks/04_customer_analysis.ipynb))
-- [ ] Day 5: delivery and seller performance
+- [x] Day 5: delivery, seller scorecard and statistical tests ([notebook](notebooks/05_delivery_seller_analysis.ipynb))
 - [ ] Day 6: dashboard
 - [ ] Day 7: final insights and recommendations

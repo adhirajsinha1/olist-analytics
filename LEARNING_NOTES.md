@@ -269,3 +269,71 @@ A: Two segments, new big spenders and at-risk big spenders, are about 30% of cus
 
 **Q: What's NTILE vs RANK?**
 A: RANK gives each row its position (1, 2, 3… with ties). NTILE(n) divides the ordered rows into n equal-sized buckets and returns the bucket number, which makes it good for quintiles and deciles.
+
+---
+
+## Day 5: Delivery, sellers & statistical testing
+
+### Hypothesis testing in one paragraph
+Start with a **null hypothesis (H₀)**: "no difference / no relationship". The test computes a **p-value**, the probability of seeing a difference at least this big **if H₀ were true**.
+If p < α (usually **0.05**), the result is unlikely under H₀, so we **reject H₀** and call it *statistically significant*.
+
+**Common traps (interviewers test these):**
+- The p-value is **not** the probability that H₀ is true.
+- "Significant" ≠ "important". With huge samples, tiny differences become significant, so **always report the effect size** (difference in means, % change, Cohen's d).
+- **Correlation ≠ causation.** To prove cause you need a controlled experiment (A/B test).
+- Not rejecting H₀ ≠ proving there's no difference (you may just lack data).
+
+### Which test when?
+| Question | Data | Test | scipy |
+|---|---|---|---|
+| Do two groups have different **means**? | numeric | **Welch's t-test** | `stats.ttest_ind(a, b, equal_var=False)` |
+| Same, but data is ordinal/skewed | ranks | **Mann-Whitney U** | `stats.mannwhitneyu(a, b)` |
+| Are two **categorical** variables related? | counts in a table | **Chi-square** | `stats.chi2_contingency(table)` |
+| Do two variables move together? | numeric/ordinal | **Pearson** (linear) / **Spearman** (rank) correlation | `stats.pearsonr`, `stats.spearmanr` |
+| More than two groups' means? | numeric | ANOVA | `stats.f_oneway(a, b, c)` |
+
+**Cohen's d** = (mean₁ − mean₂) / pooled SD → 0.2 small, 0.5 medium, 0.8+ large.
+
+### pandas learned today
+- `pd.crosstab(df.a, df.b)` → counts table (input for chi-square)
+- `df[df.is_late]` / `df[~df.is_late]` → filter by a True/False column (`~` means NOT)
+
+### Your-turn answers
+```sql
+-- 1. By payment type → boleto: 7.3% late & 13.4 days vs credit card 6.7% & 12.3 days.
+--    Boleto takes ~1 day longer (the slip has to clear before the order is approved); reviews are the same (4.16)
+SELECT main_payment_type, COUNT(*) AS orders,
+       ROUND(100 * AVG(CAST(is_late AS INT)), 1) AS late_pct,
+       ROUND(AVG(review_score), 2) AS avg_review, ROUND(AVG(delivery_days), 1) AS avg_days
+FROM delivered GROUP BY main_payment_type ORDER BY orders DESC;
+
+-- 3. Underperforming sellers by state → SP (37), PR (4), MG (3). But SP also has most sellers overall,
+--    so compare RATES, not counts, before concluding anything!
+SELECT seller_state, COUNT(*) FROM marts.seller_scorecard
+WHERE performance_flag = 'Underperforming' GROUP BY seller_state ORDER BY 2 DESC;
+```
+```python
+# 2. t-test on order value → late R$ 176 vs on-time R$ 159, p ≈ 1e-8
+d = sql("SELECT is_late, order_revenue FROM delivered")
+late, on_time = d[d.is_late].order_revenue, d[~d.is_late].order_revenue
+print(late.mean(), on_time.mean(), stats.ttest_ind(late, on_time, equal_var=False))
+# Lesson: statistically significant (tiny p) but a SMALL practical difference (~R$ 17).
+# Bigger orders are slightly more likely to be late (maybe bulky items / more sellers).
+```
+
+### Interview questions you can now answer
+**Q: What is a p-value?**
+A: The probability of seeing a result at least as extreme as the one observed if the null hypothesis were true. Below 0.05, we reject the null. It isn't the probability that the null is true, and it says nothing about how big the effect is.
+
+**Q: How did you show lateness affects satisfaction?**
+A: Late orders average 2.27★ vs 4.29★ on time. Welch's t-test gave p≈0 with Cohen's d of 1.47, a very large effect, and Mann-Whitney agreed since reviews are ordinal. The drop starts from just 1–3 days late (3.3★), so what matters is meeting the promised date rather than raw speed.
+
+**Q: Did you find anything about retention?**
+A: Customers whose first delivery was late had a 2.54% repeat rate vs 3.12%, about a 19% relative drop. A chi-square test gave p≈0.01, so it's significant. It's an association rather than proven causation, and confirming causation would need an experiment.
+
+**Q: What would you do about delivery?**
+A: The carrier leg is about 75% of delivery time, and late rates spiked to 12–19% after demand jumps, so the priorities are carrier capacity planning before peaks and route fixes for the North-East and Rio de Janeiro. Estimates are padded by about 12 days, so tightening them could lift conversion. For sellers, I built a scorecard: 50 established sellers underperform, including the #2 seller by revenue, and handling time correlates with lateness, which makes it a good SLA metric.
+
+**Q: Statistical vs practical significance?**
+A: Late orders were about R$17 more expensive on average, with p≈1e-8, which is significant but practically small. With large samples, almost everything is significant, so I always pair a p-value with an effect size.
